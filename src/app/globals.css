@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  color-scheme: dark;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -18,4 +22,15 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: #1e40af;
+  opacity: 0.2;
+  border-radius: 0.5rem;
+  transition-duration: 100ms;
+}
+
+.react-grid-item > .react-resizable-handle {
+  display: none;
 }
