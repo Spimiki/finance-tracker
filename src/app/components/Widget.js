@@ -1,27 +1,26 @@
 'use client'
 
-const sizeClasses = {
-  small: 'w-full h-full',
-  wide: 'w-full h-full',
-  tall: 'w-full h-full',
-  large: 'w-full h-full',
-}
+import { XMarkIcon } from '@heroicons/react/20/solid'
 
-export default function Widget({ id, size = 'small', className = '', children }) {
+const Widget = ({ children, title, onClose }) => {
   return (
-    <div
-      key={id}
-      className={`
-        ${sizeClasses[size]}
-        bg-white dark:bg-gray-800 
-        rounded-lg p-4 
-        shadow-lg
-        transition-colors
-        cursor-move
-        ${className}
-      `}
-    >
-      {children}
+    <div className="h-full flex flex-col">
+      <div className="flex-none p-3 border-b dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
+        <h3 className="font-medium">{title}</h3>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            <XMarkIcon className="h-4 w-4 text-gray-500" />
+          </button>
+        )}
+      </div>
+      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-800">
+        {children}
+      </div>
     </div>
-  )
-} 
+  );
+};
+
+export default Widget; 

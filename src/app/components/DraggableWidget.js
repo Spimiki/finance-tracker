@@ -1,51 +1,20 @@
 'use client'
 
-export default function DraggableWidget({ 
-  id, 
-  title,
-  children,
-  onRemove 
-}) {
-  const handleRemoveClick = (e) => {
-    e.stopPropagation();
-    onRemove(id, title);
-  };
-
+export default function DraggableWidget({ id, title, onRemove, children }) {
   return (
-    <div 
-      className="bg-white dark:bg-gray-800 rounded-[24px] p-4 shadow-md transition-all duration-200 w-full h-full border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 group relative cursor-move"
-    >
-      <div 
-        className="absolute top-3 right-3 z-50"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={handleRemoveClick}
-          className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 transition-all duration-200"
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-4 w-4" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
+    <div className="w-full h-full bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+        {onRemove && (
+          <button
+            onClick={() => onRemove(id)}
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M6 18L18 6M6 6l12 12" 
-            />
-          </svg>
-        </button>
+            Remove
+          </button>
+        )}
       </div>
-
-      <div>
-        <h2 className="text-gray-800 dark:text-white text-lg font-medium mb-2 pr-8 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {title}
-        </h2>
+      <div className="widget-content">
         {children}
       </div>
     </div>
