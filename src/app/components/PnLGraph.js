@@ -47,6 +47,13 @@ export default function PnLGraph({ trades }) {
     };
   });
 
+  // Calculate min and max values for better scaling
+  const pnlValues = chartData.map(item => item.pnl);
+  const maxPnL = Math.max(...pnlValues, 0);
+  const minPnL = Math.min(...pnlValues, 0);
+  const range = maxPnL - minPnL;
+  const padding = range * 0.05; // Reduced padding to 5%
+
   const data = {
     labels: chartData.map(item => item.date.toLocaleDateString()),
     datasets: [
@@ -55,7 +62,9 @@ export default function PnLGraph({ trades }) {
         data: chartData.map(item => item.pnl),
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.5)',
-        tension: 0.1
+        tension: 0.1,
+        pointRadius: 4,
+        pointHoverRadius: 6
       }
     ]
   };
@@ -70,21 +79,72 @@ export default function PnLGraph({ trades }) {
       title: {
         display: true,
         text: 'P/L Over Time'
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const value = context.parsed.y;
+            return `P/L: $${value.toLocaleString(undefined, {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            })}`;
+          }
+        }
       }
     },
     scales: {
       y: {
-        beginAtZero: true,
+        beginAtZero: false,
+        min: minPnL - padding, // Use min instead of suggestedMin
+        max: maxPnL + padding, // Use max instead of suggestedMax
         ticks: {
-          callback: (value) => `$${value.toLocaleString()}`
+          callback: (value) => `$${value.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          })}`,
+          maxTicksLimit: 8 // Limit number of ticks
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
         }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          maxRotation: 45,
+          minRotation: 45,
+          maxTicksLimit: 10 // Limit number of x-axis labels
+        }
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index'
+    },
+    elements: {
+      line: {
+        borderWidth: 2,
+        tension: 0.2 // Slight curve to the line
+      },
+      point: {
+        radius: 3, // Smaller points
+        borderWidth: 1,
+        backgroundColor: 'white'
       }
     }
   };
 
   return (
     <div className="h-[400px] w-full bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-      <Line data={data} options={options} />
+      {chartData.length > 0 ? (
+        <Line data={data} options={options} />
+      ) : (
+        <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+          No closed trades to display
+        </div>
+      )}
     </div>
   );
 } 

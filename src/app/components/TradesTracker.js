@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import PnLGraph from './PnLGraph';
+import Switch from '@/components/ui/Switch';
+import ValidationModal from '@/components/ui/ValidationModal';
 
 // Helius RPC endpoint (free tier)
 const HELIUS_API_KEY = '207347a2-2161-4a15-9bf9-3945e80c8032'; // You should move this to environment variables
@@ -32,8 +34,135 @@ const parseMarketCap = (input) => {
   return parseFloat(cleanInput);
 };
 
+// Add test data with more diverse scenarios
+const TEST_TRADES = [
+  {
+    id: 'test1',
+    tokenName: 'BONK',
+    ticker: 'BONK',
+    status: 'closed',
+    size: 10,
+    solPrice: 98,
+    marketCapAtEntryValue: 150000,
+    exitMarketCap: 450000,
+    exitDate: '2024-03-01',
+    entryDate: '2024-02-01',
+    note: '3x on meme coin'
+  },
+  {
+    id: 'test2',
+    tokenName: 'JUP',
+    ticker: 'JUP',
+    status: 'closed',
+    size: 5,
+    solPrice: 95,
+    marketCapAtEntryValue: 200000,
+    exitMarketCap: 180000,
+    exitDate: '2024-03-15',
+    entryDate: '2024-02-15',
+    note: 'Small loss on dip'
+  },
+  {
+    id: 'test3',
+    tokenName: 'PYTH',
+    ticker: 'PYTH',
+    status: 'open',
+    size: 7.5,
+    solPrice: 105,
+    marketCapAtEntryValue: 150000,
+    entryDate: '2024-03-01',
+    note: 'Oracle narrative'
+  },
+  {
+    id: 'test4',
+    tokenName: 'ORCA',
+    ticker: 'ORCA',
+    status: 'closed',
+    size: 2.5,
+    solPrice: 98,
+    marketCapAtEntryValue: 80000,
+    exitMarketCap: 240000,
+    exitDate: '2024-03-20',
+    entryDate: '2024-02-20',
+    note: 'DeFi momentum'
+  },
+  {
+    id: 'test5',
+    tokenName: 'MEAN',
+    ticker: 'MEAN',
+    status: 'open',
+    size: 3,
+    solPrice: 102,
+    marketCapAtEntryValue: 30000,
+    entryDate: '2024-03-10',
+    note: 'Micro cap play'
+  },
+  {
+    id: 'test6',
+    tokenName: 'RENDER',
+    ticker: 'RNDR',
+    status: 'closed',
+    size: 1.5,
+    solPrice: 97,
+    marketCapAtEntryValue: 500000,
+    exitMarketCap: 400000,
+    exitDate: '2024-03-25',
+    entryDate: '2024-03-05',
+    note: 'AI token pullback'
+  },
+  {
+    id: 'test7',
+    tokenName: 'GECKO',
+    ticker: 'GECKO',
+    status: 'closed',
+    size: 4.2,
+    solPrice: 100,
+    marketCapAtEntryValue: 45000,
+    exitMarketCap: 15000,
+    exitDate: '2024-03-28',
+    entryDate: '2024-03-15',
+    note: 'Stopped out'
+  },
+  {
+    id: 'test8',
+    tokenName: 'DUAL',
+    ticker: 'DUAL',
+    status: 'open',
+    size: 6.8,
+    solPrice: 103,
+    marketCapAtEntryValue: 125000,
+    entryDate: '2024-03-22',
+    note: 'Options protocol'
+  },
+  {
+    id: 'test9',
+    tokenName: 'PRISM',
+    ticker: 'PRISM',
+    status: 'closed',
+    size: 8.3,
+    solPrice: 99,
+    marketCapAtEntryValue: 75000,
+    exitMarketCap: 225000,
+    exitDate: '2024-03-18',
+    entryDate: '2024-02-28',
+    note: 'NFT marketplace pump'
+  },
+  {
+    id: 'test10',
+    tokenName: 'RATIO',
+    ticker: 'RATIO',
+    status: 'open',
+    size: 5.5,
+    solPrice: 101,
+    marketCapAtEntryValue: 95000,
+    entryDate: '2024-03-25',
+    note: 'DeFi lending play'
+  }
+];
+
 const TradesTracker = () => {
   const [trades, setTrades] = useState([]);
+  const [modifiedTestTrades, setModifiedTestTrades] = useState(TEST_TRADES);
   const [newTrade, setNewTrade] = useState({
     tokenAddress: "",
     ticker: "",
@@ -60,6 +189,14 @@ const TradesTracker = () => {
     isOpen: false,
     tradeId: null
   });
+  const [isTestMode, setIsTestMode] = useState(true);
+  const [validationModal, setValidationModal] = useState({
+    isOpen: false,
+    message: ''
+  });
+  
+  // Update displayedTrades to use modifiedTestTrades
+  const displayedTrades = isTestMode ? modifiedTestTrades : trades;
 
   const fetchTokenInfo = async (tokenAddress) => {
     try {
@@ -98,8 +235,6 @@ const TradesTracker = () => {
           ...prev,
           ticker: tokenContent.metadata?.symbol || tokenData.symbol || 'Unknown',
           tokenAddress: tokenAddress,
-          entryPrice: '0',
-          marketCapAtEntry: '0',
           solPrice: solPrice,
           metadata: {
             name: tokenContent.metadata?.name || tokenData.name || 'Unknown',
@@ -117,8 +252,6 @@ const TradesTracker = () => {
           ...prev,
           ticker: shortSymbol,
           tokenAddress: tokenAddress,
-          entryPrice: '0',
-          marketCapAtEntry: '0',
           solPrice: solPrice,
           metadata: {
             name: shortSymbol,
@@ -146,8 +279,6 @@ const TradesTracker = () => {
         ...prev,
         ticker: shortSymbol,
         tokenAddress: tokenAddress,
-        entryPrice: '0',
-        marketCapAtEntry: '0',
         metadata: {
           name: shortSymbol,
           symbol: shortSymbol,
@@ -181,16 +312,22 @@ const TradesTracker = () => {
       return;
     }
 
-    setNewTrade(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Handle manual ticker input when no address is present
+    if (name === 'ticker' && !newTrade.tokenAddress) {
+      setNewTrade(prev => ({
+        ...prev,
+        ticker: value.toUpperCase()
+      }));
+      return;
+    }
 
+    // Handle token address input
     if (name === 'tokenAddress') {
-      if (value.length < 32) {
+      if (!value) {
+        // Reset metadata but keep other fields if address is cleared
         setNewTrade(prev => ({
           ...prev,
-          ticker: '',
+          tokenAddress: '',
           metadata: null
         }));
         return;
@@ -198,42 +335,67 @@ const TradesTracker = () => {
       
       if (value.length >= 32) {
         await fetchTokenInfo(value.trim());
+      } else {
+        setNewTrade(prev => ({
+          ...prev,
+          tokenAddress: value
+        }));
       }
+      return;
     }
+
+    setNewTrade(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!newTrade.tokenAddress || newTrade.ticker === 'Invalid address') {
-      alert("Please enter a valid Solana token address");
+    if (!newTrade.ticker) {
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter a ticker symbol"
+      });
       return;
     }
 
     if (!newTrade.size || newTrade.size <= 0) {
-      alert("Please enter a valid position size");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter a valid position size"
+      });
       return;
     }
 
     if (!newTrade.marketCapAtEntry) {
-      alert("Please enter entry market cap");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter entry market cap"
+      });
       return;
     }
 
     const parsedMarketCap = parseMarketCap(newTrade.marketCapAtEntry);
     const parsedExitMarketCap = newTrade.exitMarketCap ? parseMarketCap(newTrade.exitMarketCap) : null;
 
-    setTrades((prev) => [
-      ...prev,
-      {
-        ...newTrade,
-        id: Date.now(),
-        entryDate: new Date().toISOString(),
-        marketCapAtEntryValue: parsedMarketCap,
-        exitMarketCap: parsedExitMarketCap,
-        status: parsedExitMarketCap ? 'closed' : 'open'
-      },
-    ]);
+    const newTradeData = {
+      ...newTrade,
+      id: `test${Date.now()}`, // Unique ID for test trades
+      entryDate: new Date().toISOString(),
+      marketCapAtEntryValue: parsedMarketCap,
+      exitMarketCap: parsedExitMarketCap,
+      status: parsedExitMarketCap ? 'closed' : 'open',
+      solPrice: newTrade.solPrice || 100, // Default SOL price if not provided
+      tokenName: newTrade.ticker // Use ticker as token name if not provided
+    };
+
+    if (isTestMode) {
+      setModifiedTestTrades(prev => [...prev, newTradeData]);
+    } else {
+      setTrades(prev => [...prev, newTradeData]);
+    }
 
     resetNewTrade();
   };
@@ -247,22 +409,30 @@ const TradesTracker = () => {
     });
   };
 
+  // Update closePosition to handle both real and test trades
   const closePosition = () => {
     if (!closePositionModal.exitMarketCap) {
-      alert("Please enter exit market cap");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter exit market cap"
+      });
       return;
     }
 
     const parsedExitMarketCap = parseMarketCap(closePositionModal.exitMarketCap);
 
     if (isNaN(parsedExitMarketCap) || parsedExitMarketCap <= 0) {
-      alert("Please enter a valid exit market cap");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter a valid exit market cap"
+      });
       return;
     }
 
-    setTrades((prev) =>
-      prev.map((trade) =>
-        trade.id === closePositionModal.tradeId
+    if (isTestMode) {
+      setModifiedTestTrades(prev =>
+        prev.map((trade) =>
+          trade.id === closePositionModal.tradeId
             ? {
                 ...trade,
                 status: "closed",
@@ -272,7 +442,22 @@ const TradesTracker = () => {
               }
             : trade
         )
-    );
+      );
+    } else {
+      setTrades(prev =>
+        prev.map((trade) =>
+          trade.id === closePositionModal.tradeId
+            ? {
+                ...trade,
+                status: "closed",
+                exitDate: new Date().toISOString(),
+                exitMarketCap: parsedExitMarketCap,
+                exitMarketCapDisplay: formatMarketCap(parsedExitMarketCap),
+              }
+            : trade
+        )
+      );
+    }
 
     setClosePositionModal({
       isOpen: false,
@@ -338,15 +523,13 @@ const TradesTracker = () => {
     };
   };
 
-  const handleDelete = (tradeId) => {
-    setDeleteModal({
-      isOpen: true,
-      tradeId
-    });
-  };
-
+  // Update handleDelete to handle both real and test trades
   const confirmDelete = () => {
-    setTrades(prev => prev.filter(trade => trade.id !== deleteModal.tradeId));
+    if (isTestMode) {
+      setModifiedTestTrades(prev => prev.filter(trade => trade.id !== deleteModal.tradeId));
+    } else {
+      setTrades(prev => prev.filter(trade => trade.id !== deleteModal.tradeId));
+    }
     setDeleteModal({
       isOpen: false,
       tradeId: null
@@ -359,7 +542,9 @@ const TradesTracker = () => {
       marketCapAtEntry: trade.marketCapAtEntryValue ? formatMarketCap(trade.marketCapAtEntryValue) : '',
       exitMarketCap: trade.exitMarketCap ? formatMarketCap(trade.exitMarketCap) : '',
       note: trade.note || '',
-      size: trade.size || ''
+      size: trade.size || '',
+      exitDate: trade.exitDate || null,
+      entryDate: trade.entryDate
     });
   };
 
@@ -371,35 +556,62 @@ const TradesTracker = () => {
     }));
   };
 
+  // Update saveEdit function to preserve dates
   const saveEdit = (tradeId) => {
     const parsedMarketCap = parseMarketCap(editingValues.marketCapAtEntry);
     const parsedExitMarketCap = editingValues.exitMarketCap ? parseMarketCap(editingValues.exitMarketCap) : null;
     const parsedSize = parseFloat(editingValues.size);
 
     if (!parsedMarketCap || parsedMarketCap <= 0) {
-      alert("Please enter a valid entry market cap");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter a valid entry market cap"
+      });
       return;
     }
 
     if (!parsedSize || parsedSize <= 0) {
-      alert("Please enter a valid size");
+      setValidationModal({
+        isOpen: true,
+        message: "Please enter a valid size"
+      });
       return;
     }
 
-    setTrades(prev => prev.map(trade => {
-      if (trade.id === tradeId) {
-        return {
-          ...trade,
-          marketCapAtEntryValue: parsedMarketCap,
-          exitMarketCap: parsedExitMarketCap,
-          status: parsedExitMarketCap ? 'closed' : 'open',
-          note: editingValues.note,
-          size: parsedSize,
-          exitDate: parsedExitMarketCap ? new Date().toISOString() : null
-        };
-      }
-      return trade;
-    }));
+    const updatedTrade = {
+      marketCapAtEntryValue: parsedMarketCap,
+      exitMarketCap: parsedExitMarketCap,
+      status: parsedExitMarketCap ? 'closed' : 'open',
+      note: editingValues.note,
+      size: parsedSize,
+      exitDate: parsedExitMarketCap && !editingValues.exitDate ? new Date().toISOString() : editingValues.exitDate
+    };
+
+    if (isTestMode) {
+      setModifiedTestTrades(prev => prev.map(trade => {
+        if (trade.id === tradeId) {
+          return {
+            ...trade,
+            ...updatedTrade,
+            entryDate: trade.entryDate,
+            exitDate: updatedTrade.exitDate || trade.exitDate
+          };
+        }
+        return trade;
+      }));
+    } else {
+      setTrades(prev => prev.map(trade => {
+        if (trade.id === tradeId) {
+          return {
+            ...trade,
+            ...updatedTrade,
+            entryDate: trade.entryDate,
+            exitDate: updatedTrade.exitDate || trade.exitDate
+          };
+        }
+        return trade;
+      }));
+    }
     
     setEditingId(null);
     setEditingValues(null);
@@ -445,7 +657,7 @@ const TradesTracker = () => {
     }).format(num);
   };
 
-  const closedTrades = trades.filter(t => t.status === 'closed');
+  const closedTrades = displayedTrades.filter(t => t.status === 'closed');
   const totalPnL = closedTrades.reduce((sum, trade) => {
     const pnlValue = trade.exitMarketCap - trade.marketCapAtEntryValue;
     const pnlUSD = pnlValue * (trade.size * trade.solPrice / trade.marketCapAtEntryValue);
@@ -461,8 +673,41 @@ const TradesTracker = () => {
     ? ((winningTrades.length / closedTrades.length) * 100).toFixed(1)
     : 0;
 
+  // Add reset functionality when switching modes
+  const handleTestModeChange = (newValue) => {
+    setIsTestMode(newValue);
+    if (newValue) {
+      // Reset modified test trades to original state when switching to test mode
+      setModifiedTestTrades(TEST_TRADES);
+    }
+  };
+
+  const handleDelete = (tradeId) => {
+    setDeleteModal({
+      isOpen: true,
+      tradeId
+    });
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {validationModal.isOpen && (
+        <ValidationModal
+          message={validationModal.message}
+          onClose={() => setValidationModal({ isOpen: false, message: '' })}
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={isTestMode}
+          onCheckedChange={handleTestModeChange}
+        />
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          Test Mode {isTestMode ? '(Demo Data)' : '(Real Trades)'}
+        </span>
+      </div>
+
       {/* Close Position Modal */}
       {closePositionModal.isOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -538,7 +783,7 @@ const TradesTracker = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* P/L Graph */}
         <div className="col-span-1">
-          <PnLGraph trades={trades} />
+          <PnLGraph trades={displayedTrades} />
         </div>
 
         {/* Summary Stats */}
@@ -550,13 +795,13 @@ const TradesTracker = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Trades</p>
               <p className="text-2xl font-semibold">
-                {trades.length}
+                {displayedTrades.length}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Open Positions</p>
               <p className="text-2xl font-semibold">
-                {trades.filter(t => t.status === 'open').length}
+                {displayedTrades.filter(t => t.status === 'open').length}
               </p>
             </div>
             <div>
@@ -591,19 +836,23 @@ const TradesTracker = () => {
                 <input
                   type="text"
                   name="tokenAddress"
-                  placeholder="Token Address"
+                  placeholder="Token Address (optional)"
                   value={newTrade.tokenAddress}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
-                {newTrade.ticker && newTrade.metadata && (
-                  <div className="absolute right-3 top-2 text-sm text-gray-500 dark:text-gray-400">
-                    {newTrade.ticker}
-                    <span className="ml-2 text-xs">
-                      MC: ${Number(newTrade.metadata.marketCap).toLocaleString()}
-                    </span>
-                  </div>
-                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  name="ticker"
+                  placeholder="Ticker Symbol"
+                  value={newTrade.ticker}
+                  onChange={handleInputChange}
+                  disabled={!!newTrade.tokenAddress} // Disable if address is present
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
 
               <div className="relative">
@@ -700,161 +949,163 @@ const TradesTracker = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {trades.map((trade) => {
-                const isEditing = editingId === trade.id;
-                const pnlData = calculatePnL(trade);
-                const hasValidPnL = trade.status === "closed" && 
-                  trade.exitMarketCap && 
-                  trade.marketCapAtEntryValue && 
-                  !isNaN(trade.exitMarketCap) && 
-                  !isNaN(trade.marketCapAtEntryValue);
+              {displayedTrades
+                .sort((a, b) => new Date(b.entryDate) - new Date(a.entryDate))
+                .map((trade) => {
+                  const isEditing = editingId === trade.id;
+                  const pnlData = calculatePnL(trade);
+                  const hasValidPnL = trade.status === "closed" && 
+                    trade.exitMarketCap && 
+                    trade.marketCapAtEntryValue && 
+                    !isNaN(trade.exitMarketCap) && 
+                    !isNaN(trade.marketCapAtEntryValue);
 
-                const pnlPercentage = hasValidPnL ? 
-                  ((trade.exitMarketCap - trade.marketCapAtEntryValue) / trade.marketCapAtEntryValue) * 100 : 
-                  null;
+                  const pnlPercentage = hasValidPnL ? 
+                    ((trade.exitMarketCap - trade.marketCapAtEntryValue) / trade.marketCapAtEntryValue) * 100 : 
+                    null;
 
-                const pnlValue = hasValidPnL ? 
-                  trade.exitMarketCap - trade.marketCapAtEntryValue : 
-                  null;
+                  const pnlValue = hasValidPnL ? 
+                    trade.exitMarketCap - trade.marketCapAtEntryValue : 
+                    null;
 
-                return (
-                  <tr key={trade.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {new Date(trade.entryDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {trade.ticker}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingValues.marketCapAtEntry}
-                          onChange={(e) => handleEditChange(e, 'marketCapAtEntry')}
-                          className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      ) : (
-                        `$${formatLargeNumber(trade.marketCapAtEntryValue)}`
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingValues.exitMarketCap}
-                          onChange={(e) => handleEditChange(e, 'exitMarketCap')}
-                          className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      ) : (
-                        trade.status === "closed" ? `$${formatLargeNumber(trade.exitMarketCap)}` : "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          value={editingValues.size}
-                          onChange={(e) => handleEditChange(e, 'size')}
-                          className="w-20 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      ) : (
-                        `${trade.size} SOL`
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      ${((trade.size || 0) * (trade.solPrice || 0)).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingValues.note}
-                          onChange={(e) => handleEditChange(e, 'note')}
-                          className="w-32 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      ) : (
-                        trade.note
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`${
-                          trade.status === "open"
-                            ? "text-yellow-600 dark:text-yellow-400"
-                            : "text-green-600 dark:text-green-400"
-                        }`}
-                      >
-                        {trade.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {hasValidPnL ? (
-                        <div>
-                          <span
-                            className={
-                              pnlValue >= 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            }
-                          >
-                            {pnlPercentage.toFixed(2)}%
-                            <br />
-                            ${formatLargeNumber(pnlValue * (trade.size * trade.solPrice / trade.marketCapAtEntryValue))}
-                          </span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-3">
+                  return (
+                    <tr key={trade.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {new Date(trade.entryDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {trade.ticker}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
                         {isEditing ? (
-                          <>
-                            <button
-                              className="text-green-600 hover:text-green-800"
-                              onClick={() => saveEdit(trade.id)}
-                            >
-                              Save
-                            </button>
-                            <button
-                              className="text-gray-600 hover:text-gray-800"
-                              onClick={() => {
-                                setEditingId(null);
-                                setEditingValues(null);
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </>
+                          <input
+                            type="text"
+                            value={editingValues.marketCapAtEntry}
+                            onChange={(e) => handleEditChange(e, 'marketCapAtEntry')}
+                            className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                          />
                         ) : (
-                          <>
-                            <button
-                              className="text-blue-600 hover:text-blue-800"
-                              onClick={() => startEditing(trade)}
+                          `$${formatLargeNumber(trade.marketCapAtEntryValue)}`
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingValues.exitMarketCap}
+                            onChange={(e) => handleEditChange(e, 'exitMarketCap')}
+                            className="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        ) : (
+                          trade.status === "closed" ? `$${formatLargeNumber(trade.exitMarketCap)}` : "-"
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingValues.size}
+                            onChange={(e) => handleEditChange(e, 'size')}
+                            className="w-20 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        ) : (
+                          `${trade.size} SOL`
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        ${((trade.size || 0) * (trade.solPrice || 0)).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingValues.note}
+                            onChange={(e) => handleEditChange(e, 'note')}
+                            className="w-32 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        ) : (
+                          trade.note
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`${
+                            trade.status === "open"
+                              ? "text-yellow-600 dark:text-yellow-400"
+                              : "text-green-600 dark:text-green-400"
+                          }`}
+                        >
+                          {trade.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {hasValidPnL ? (
+                          <div>
+                            <span
+                              className={
+                                pnlValue >= 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }
                             >
-                              Edit
-                            </button>
-                            {trade.status === "open" && (
+                              {pnlPercentage.toFixed(2)}%
+                              <br />
+                              ${formatLargeNumber(pnlValue * (trade.size * trade.solPrice / trade.marketCapAtEntryValue))}
+                            </span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex space-x-3">
+                          {isEditing ? (
+                            <>
                               <button
                                 className="text-green-600 hover:text-green-800"
-                                onClick={() => openClosePositionModal(trade.id)}
+                                onClick={() => saveEdit(trade.id)}
                               >
-                                Close
+                                Save
                               </button>
-                            )}
-                            <button
-                              className="text-red-600 hover:text-red-800"
-                              onClick={() => handleDelete(trade.id)}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                              <button
+                                className="text-gray-600 hover:text-gray-800"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditingValues(null);
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="text-blue-600 hover:text-blue-800"
+                                onClick={() => startEditing(trade)}
+                              >
+                                Edit
+                              </button>
+                              {trade.status === "open" && (
+                                <button
+                                  className="text-green-600 hover:text-green-800"
+                                  onClick={() => openClosePositionModal(trade.id)}
+                                >
+                                  Close
+                                </button>
+                              )}
+                              <button
+                                className="text-red-600 hover:text-red-800"
+                                onClick={() => handleDelete(trade.id)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
